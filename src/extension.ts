@@ -18,7 +18,8 @@ export function activate(context: vscode.ExtensionContext) {
 		let currentDocument: vscode.TextDocument | undefined;
 		let currentTarget: vscode.Uri | undefined;
 		const edit = new vscode.WorkspaceEdit();
-		let editedFiles = new Set();
+		const openedDocuments = new Map<string, vscode.TextDocument>();
+		const editedDocumentKeys = new Set<string>();
 		let warnLongLines = false;
 
 		const channel = vscode.window.createOutputChannel("Search Editor");
@@ -29,6 +30,9 @@ export function activate(context: vscode.ExtensionContext) {
 				const [, path] = fileLine;
 				currentTarget = relativePathToUri(path, activeDocument.uri);
 				currentDocument = currentTarget && await vscode.workspace.openTextDocument(currentTarget);
+				if (currentDocument && currentTarget) {
+					openedDocuments.set(currentTarget.toString(), currentDocument);
+				}
 				filename = currentTarget && line;
 			}
 
@@ -44,8 +48,9 @@ export function activate(context: vscode.ExtensionContext) {
 					warnLongLines = true;
 				}
 				else if (oldLine.text !== newLine) {
-					if (!editedFiles.has(currentTarget.toString())) {
-						editedFiles.add(currentTarget.toString());
+					const targetKey = currentTarget.toString();
+					if (!editedDocumentKeys.has(targetKey)) {
+						editedDocumentKeys.add(targetKey);
 						channel.appendLine(filename);
 					}
 					channel.appendLine(`	${oldLine.text} => ${newLine}`);
@@ -58,10 +63,25 @@ export function activate(context: vscode.ExtensionContext) {
 			vscode.window.showWarningMessage('Changes to lines over 200 charachters in length may have been ignored.');
 		}
 
-		vscode.workspace.applyEdit(edit);
+		const didApply = await vscode.workspace.applyEdit(edit);
+		if (!didApply) {
+			vscode.window.showErrorMessage('Failed to apply search editor changes.');
+			return;
+		}
+
+		for (const key of editedDocumentKeys) {
+			const doc = openedDocuments.get(key);
+			if (doc?.isDirty) {
+				const saved = await doc.save();
+				if (!saved) {
+					channel.appendLine(`Failed to save ${doc.fileName}`);
+					vscode.window.showWarningMessage(`Could not save ${doc.fileName}`);
+				}
+			}
+		}
 
 		// Hack to get the state clean, as it in some ways is clean, and this reduces friction for SaveAll/etc.
-		vscode.commands.executeCommand('cleanSearchEditorState');
+		await vscode.commands.executeCommand('cleanSearchEditorState');
 	}));
 }
 
