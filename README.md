@@ -1,4 +1,4 @@
-# Search Editor: Apply Changes
+# FORK Search Editor: Apply Changes
 
 In the marketplace [here](https://marketplace.visualstudio.com/items?itemName=jakearl.search-editor-apply-changes).
 
