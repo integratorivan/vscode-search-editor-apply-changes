@@ -25,6 +25,14 @@
 				"enablement": "editorLangId == search-result",
 				"title": "Apply Search Editor changes to workspace"
 			}
+		],
+		"keybindings": [
+			{
+				"command": "searchEditorApplyChanges.apply",
+				"key": "ctrl+s",
+				"mac": "cmd+s",
+				"when": "inSearchEditor"
+			}
 		]
 	},
 	"scripts": {
